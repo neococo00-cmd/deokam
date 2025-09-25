@@ -112,35 +112,49 @@
             width: auto;
         }
 
-        .nav-tabs {
+        .btn-small {
+            padding: 5px 15px;
+            font-size: 14px;
+            border-radius: 5px;
+        }
+
+        .user-info {
             display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 30px;
-            border-bottom: 2px solid #e1e5e9;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
         }
 
-        .nav-tab {
-            padding: 15px 25px;
-            background: none;
-            border: none;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 14px;
             color: #6c757d;
-            transition: all 0.3s ease;
-            flex: 1;
         }
 
-        .nav-tab.active {
+        .breadcrumb a {
             color: #4a90e2;
-            border-bottom: 3px solid #4a90e2;
+            text-decoration: none;
+            cursor: pointer;
         }
 
-        .tab-content {
-            display: none;
+        .breadcrumb a:hover {
+            text-decoration: underline;
         }
 
-        .tab-content.active {
-            display: block;
+        .breadcrumb span {
+            margin: 0 8px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
         }
 
         .file-upload {
@@ -162,6 +176,21 @@
             display: none;
         }
 
+        .folder-create {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .folder-create input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
         .file-list {
             background: white;
             border-radius: 10px;
@@ -172,8 +201,13 @@
             padding: 20px;
             border-bottom: 1px solid #e1e5e9;
             display: flex;
-            justify-content: between;
+            justify-content: space-between;
             align-items: center;
+            transition: background 0.3s ease;
+        }
+
+        .file-item:hover {
+            background: #f8f9fa;
         }
 
         .file-item:last-child {
@@ -182,12 +216,34 @@
 
         .file-info {
             flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .file-icon {
+            font-size: 24px;
+            width: 40px;
+            text-align: center;
+        }
+
+        .file-details {
+            flex: 1;
         }
 
         .file-name {
             font-weight: 600;
             color: #333;
             margin-bottom: 5px;
+            cursor: pointer;
+        }
+
+        .folder-name {
+            color: #4a90e2;
+        }
+
+        .folder-name:hover {
+            text-decoration: underline;
         }
 
         .file-meta {
@@ -198,22 +254,6 @@
         .file-actions {
             display: flex;
             gap: 10px;
-        }
-
-        .btn-small {
-            padding: 5px 15px;
-            font-size: 14px;
-            border-radius: 5px;
-        }
-
-        .user-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
         }
 
         .alert {
@@ -255,13 +295,57 @@
             100% { transform: rotate(360deg); }
         }
 
-        .recent-files {
-            margin-top: 30px;
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
         }
 
-        .recent-files h3 {
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .modal h3 {
             margin-bottom: 20px;
             color: #333;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
         }
 
         @media (max-width: 768px) {
@@ -269,14 +353,20 @@
                 padding: 20px;
             }
             
-            .nav-tabs {
-                flex-direction: column;
-            }
-            
             .file-item {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 10px;
+            }
+            
+            .file-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .toolbar {
+                flex-direction: column;
             }
         }
     </style>
@@ -285,7 +375,7 @@
     <div class="container">
         <div class="header">
             <h1>서울덕암초등학교</h1>
-            <p>교직원 전용 자료관리 시스템</p>
+            <p>교직원 전용 업무자료관리 시스템</p>
         </div>
         
         <div class="content">
@@ -315,49 +405,44 @@
                     <button class="btn btn-secondary" onclick="logout()">로그아웃</button>
                 </div>
 
-                <div class="nav-tabs">
-                    <button class="nav-tab active" onclick="showTab('teaching')">교무자료실</button>
-                    <button class="nav-tab" onclick="showTab('notice')">공지자료실</button>
+                <!-- 경로 표시 -->
+                <div class="breadcrumb" id="breadcrumb">
+                    <a onclick="navigateToFolder('')">📁 업무자료실</a>
                 </div>
 
-                <!-- 교무자료실 -->
-                <div id="teachingTab" class="tab-content active">
-                    <div class="file-upload" onclick="document.getElementById('teachingFile').click()">
-                        <input type="file" id="teachingFile" onchange="uploadFile('teaching')" multiple>
-                        <h3>📁 파일 업로드</h3>
-                        <p>클릭하여 교무자료를 업로드하세요</p>
-                        <small>지원 형식: PDF, DOC, HWP, JPG, PNG, ZIP (최대 50MB)</small>
-                    </div>
-                    
-                    <div id="teachingFiles" class="file-list">
-                        <div class="loading" id="teachingLoading">
-                            <div class="spinner"></div>
-                            <p>파일을 불러오는 중...</p>
-                        </div>
-                    </div>
+                <!-- 도구모음 -->
+                <div class="toolbar">
+                    <button class="btn btn-small" onclick="showCreateFolderModal()">📁 새 폴더</button>
+                    <button class="btn btn-small" onclick="document.getElementById('fileInput').click()">📎 파일 업로드</button>
+                    <input type="file" id="fileInput" onchange="uploadFile()" multiple style="display: none;">
                 </div>
 
-                <!-- 공지자료실 -->
-                <div id="noticeTab" class="tab-content">
-                    <div class="file-upload" onclick="document.getElementById('noticeFile').click()">
-                        <input type="file" id="noticeFile" onchange="uploadFile('notice')" multiple>
-                        <h3>📢 파일 업로드</h3>
-                        <p>클릭하여 공지자료를 업로드하세요</p>
-                        <small>지원 형식: PDF, DOC, HWP, JPG, PNG, ZIP (최대 50MB)</small>
-                    </div>
-                    
-                    <div id="noticeFiles" class="file-list">
-                        <div class="loading" id="noticeLoading">
-                            <div class="spinner"></div>
-                            <p>파일을 불러오는 중...</p>
-                        </div>
-                    </div>
+                <!-- 파일 업로드 영역 -->
+                <div class="file-upload" onclick="document.getElementById('fileInput').click()">
+                    <h3>📁 파일 업로드</h3>
+                    <p>클릭하여 파일을 업로드하거나 드래그&드롭하세요</p>
+                    <small>지원 형식: PDF, DOC, HWP, JPG, PNG, ZIP (최대 50MB)</small>
                 </div>
 
-                <div class="recent-files">
-                    <h3>최근 업로드된 자료</h3>
-                    <div id="recentFiles" class="file-list"></div>
+                <!-- 파일 목록 -->
+                <div id="fileList" class="file-list">
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <p>파일을 불러오는 중...</p>
+                    </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 폴더 생성 모달 -->
+    <div id="createFolderModal" class="modal">
+        <div class="modal-content">
+            <h3>새 폴더 만들기</h3>
+            <input type="text" id="folderNameInput" placeholder="폴더 이름을 입력하세요">
+            <div class="modal-buttons">
+                <button class="btn btn-small" onclick="createFolder()">생성</button>
+                <button class="btn btn-small btn-secondary" onclick="closeCreateFolderModal()">취소</button>
             </div>
         </div>
     </div>
@@ -366,18 +451,18 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, serverTimestamp, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js';
 
-       const firebaseConfig = {
-  apiKey: "AIzaSyAAEa3hLEw_O75HB9_3AVEB2lDcb_5Syqg",
-  authDomain: "deokam-school.firebaseapp.com",
-  projectId: "deokam-school",
-  storageBucket: "deokam-school.firebasestorage.app",
-  messagingSenderId: "898489915549",
-  appId: "1:898489915549:web:a9974306971a3485c45c74",
-  measurementId: "G-EE93PCT7MG"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyAAEa3hLEw_O75HB9_3AVEB2lDcb_5Syqg",
+            authDomain: "deokam-school.firebaseapp.com",
+            projectId: "deokam-school",
+            storageBucket: "deokam-school.firebasestorage.app",
+            messagingSenderId: "898489915549",
+            appId: "1:898489915549:web:a9974306971a3485c45c74",
+            measurementId: "G-EE93PCT7MG"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -392,7 +477,7 @@
         window.getDocs = getDocs;
         window.query = query;
         window.orderBy = orderBy;
-        window.limit = limit;
+        window.where = where;
         window.serverTimestamp = serverTimestamp;
         window.deleteDoc = deleteDoc;
         window.doc = doc;
@@ -404,12 +489,10 @@
         window.signOut = signOut;
         window.onAuthStateChanged = onAuthStateChanged;
 
-        // 인증 상태 확인
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 showMainContent(user);
-                loadFiles();
-                loadRecentFiles();
+                loadCurrentFolder();
             } else {
                 showLoginForm();
             }
@@ -418,7 +501,7 @@
 
     <script>
         let currentUser = null;
-        let currentTab = 'teaching';
+        let currentFolder = ''; // 현재 폴더 경로
 
         // 로그인 함수
         async function login() {
@@ -465,23 +548,50 @@
             document.getElementById('password').value = '';
         }
 
-        // 탭 전환
-        function showTab(tabName) {
-            // 모든 탭 비활성화
-            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        // 폴더 생성 모달 표시
+        function showCreateFolderModal() {
+            document.getElementById('createFolderModal').style.display = 'block';
+            document.getElementById('folderNameInput').value = '';
+            document.getElementById('folderNameInput').focus();
+        }
+
+        // 폴더 생성 모달 닫기
+        function closeCreateFolderModal() {
+            document.getElementById('createFolderModal').style.display = 'none';
+        }
+
+        // 폴더 생성
+        async function createFolder() {
+            const folderName = document.getElementById('folderNameInput').value.trim();
             
-            // 선택된 탭 활성화
-            event.target.classList.add('active');
-            document.getElementById(tabName + 'Tab').classList.add('active');
-            
-            currentTab = tabName;
-            loadFiles();
+            if (!folderName) {
+                showAlert('폴더 이름을 입력해주세요.', 'error');
+                return;
+            }
+
+            try {
+                const folderPath = currentFolder ? `${currentFolder}/${folderName}` : folderName;
+                
+                await addDoc(collection(db, 'folders'), {
+                    name: folderName,
+                    path: folderPath,
+                    parentPath: currentFolder,
+                    createdBy: currentUser.email,
+                    createdAt: serverTimestamp()
+                });
+
+                showAlert(`폴더 "${folderName}"이 생성되었습니다.`, 'success');
+                closeCreateFolderModal();
+                loadCurrentFolder();
+            } catch (error) {
+                showAlert('폴더 생성 중 오류가 발생했습니다.', 'error');
+                console.error('폴더 생성 오류:', error);
+            }
         }
 
         // 파일 업로드
-        async function uploadFile(category) {
-            const input = document.getElementById(category + 'File');
+        async function uploadFile() {
+            const input = document.getElementById('fileInput');
             const files = input.files;
             
             if (files.length === 0) return;
@@ -493,20 +603,22 @@
                 }
 
                 try {
-                    showLoading(category, true);
+                    showLoading(true);
                     
-                    // Storage에 파일 업로드
-                    const fileRef = ref(storage, `${category}/${Date.now()}_${file.name}`);
+                    const fileName = `${Date.now()}_${file.name}`;
+                    const filePath = currentFolder ? `files/${currentFolder}/${fileName}` : `files/${fileName}`;
+                    const fileRef = ref(storage, filePath);
                     const snapshot = await uploadBytes(fileRef, file);
                     const downloadURL = await getDownloadURL(snapshot.ref);
                     
-                    // Firestore에 파일 정보 저장
                     await addDoc(collection(db, 'files'), {
                         name: file.name,
-                        category: category,
+                        originalName: file.name,
                         size: file.size,
                         type: file.type,
                         url: downloadURL,
+                        path: filePath,
+                        folder: currentFolder,
                         uploadedBy: currentUser.email,
                         uploadedAt: serverTimestamp(),
                         downloads: 0
@@ -517,112 +629,163 @@
                     showAlert(`${file.name} 업로드 중 오류가 발생했습니다.`, 'error');
                     console.error('업로드 오류:', error);
                 } finally {
-                    showLoading(category, false);
+                    showLoading(false);
                 }
             }
             
             input.value = '';
-            loadFiles();
-            loadRecentFiles();
+            loadCurrentFolder();
         }
 
-        // 파일 목록 로드
-        async function loadFiles() {
+        // 현재 폴더 내용 로드
+        async function loadCurrentFolder() {
             if (!currentUser) return;
             
             try {
-                showLoading(currentTab, true);
+                showLoading(true);
+                updateBreadcrumb();
                 
-                const q = query(
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = '';
+
+                // 폴더 목록 가져오기
+                const foldersQuery = query(
+                    collection(db, 'folders'),
+                    where('parentPath', '==', currentFolder),
+                    orderBy('createdAt', 'desc')
+                );
+                
+                const foldersSnapshot = await getDocs(foldersQuery);
+                
+                // 파일 목록 가져오기
+                const filesQuery = query(
                     collection(db, 'files'),
+                    where('folder', '==', currentFolder),
                     orderBy('uploadedAt', 'desc')
                 );
                 
-                const querySnapshot = await getDocs(q);
-                const container = document.getElementById(currentTab + 'Files');
+                const filesSnapshot = await getDocs(filesQuery);
                 
-                container.innerHTML = '';
-                
-                querySnapshot.forEach((docSnap) => {
-                    const file = docSnap.data();
-                    if (file.category === currentTab) {
-                        const fileElement = createFileElement(file, docSnap.id);
-                        container.appendChild(fileElement);
-                    }
+                let hasContent = false;
+
+                // 폴더 표시
+                foldersSnapshot.forEach((folderDoc) => {
+                    const folder = folderDoc.data();
+                    const folderElement = createFolderElement(folder, folderDoc.id);
+                    fileList.appendChild(folderElement);
+                    hasContent = true;
                 });
-                
-                if (container.children.length === 0) {
-                    container.innerHTML = '<div class="file-item"><div class="file-info">업로드된 파일이 없습니다.</div></div>';
+
+                // 파일 표시
+                filesSnapshot.forEach((fileDoc) => {
+                    const file = fileDoc.data();
+                    const fileElement = createFileElement(file, fileDoc.id);
+                    fileList.appendChild(fileElement);
+                    hasContent = true;
+                });
+
+                if (!hasContent) {
+                    fileList.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">📂</div>
+                            <p>이 폴더는 비어있습니다.</p>
+                            <small>파일을 업로드하거나 새 폴더를 만들어보세요.</small>
+                        </div>
+                    `;
                 }
                 
             } catch (error) {
-                showAlert('파일 목록을 불러오는 중 오류가 발생했습니다.', 'error');
-                console.error('파일 로드 오류:', error);
+                showAlert('폴더 내용을 불러오는 중 오류가 발생했습니다.', 'error');
+                console.error('폴더 로드 오류:', error);
             } finally {
-                showLoading(currentTab, false);
+                showLoading(false);
             }
         }
 
-        // 최근 파일 로드
-        async function loadRecentFiles() {
-            if (!currentUser) return;
+        // 폴더로 이동
+        function navigateToFolder(folderPath) {
+            currentFolder = folderPath;
+            loadCurrentFolder();
+        }
+
+        // 경로 표시 업데이트
+        function updateBreadcrumb() {
+            const breadcrumb = document.getElementById('breadcrumb');
+            const pathParts = currentFolder.split('/').filter(part => part);
             
-            try {
-                const q = query(
-                    collection(db, 'files'),
-                    orderBy('uploadedAt', 'desc'),
-                    limit(5)
-                );
-                
-                const querySnapshot = await getDocs(q);
-                const container = document.getElementById('recentFiles');
-                
-                container.innerHTML = '';
-                
-                querySnapshot.forEach((docSnap) => {
-                    const file = docSnap.data();
-                    const fileElement = createFileElement(file, docSnap.id, true);
-                    container.appendChild(fileElement);
-                });
-                
-                if (container.children.length === 0) {
-                    container.innerHTML = '<div class="file-item"><div class="file-info">최근 업로드된 파일이 없습니다.</div></div>';
-                }
-                
-            } catch (error) {
-                console.error('최근 파일 로드 오류:', error);
-            }
+            let html = '<a onclick="navigateToFolder(\'\')">📁 업무자료실</a>';
+            
+            let currentPath = '';
+            pathParts.forEach((part, index) => {
+                currentPath += (index === 0 ? '' : '/') + part;
+                html += ` <span>></span> <a onclick="navigateToFolder('${currentPath}')">${part}</a>`;
+            });
+            
+            breadcrumb.innerHTML = html;
+        }
+
+        // 폴더 요소 생성
+        function createFolderElement(folder, folderId) {
+            const folderItem = document.createElement('div');
+            folderItem.className = 'file-item';
+            
+            const createdDate = folder.createdAt ? new Date(folder.createdAt.seconds * 1000).toLocaleDateString('ko-KR') : '날짜 없음';
+            
+            folderItem.innerHTML = `
+                <div class="file-info">
+                    <div class="file-icon">📁</div>
+                    <div class="file-details">
+                        <div class="file-name folder-name" onclick="navigateToFolder('${folder.path}')">${folder.name}</div>
+                        <div class="file-meta">폴더 | ${folder.createdBy} | ${createdDate}</div>
+                    </div>
+                </div>
+                <div class="file-actions">
+                    ${folder.createdBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="deleteFolder('${folderId}', '${folder.path}')">삭제</button>` : ''}
+                </div>
+            `;
+            
+            return folderItem;
         }
 
         // 파일 요소 생성
-        function createFileElement(file, docId, isRecent = false) {
+        function createFileElement(file, fileId) {
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
             
             const uploadDate = file.uploadedAt ? new Date(file.uploadedAt.seconds * 1000).toLocaleDateString('ko-KR') : '날짜 없음';
             const fileSize = formatFileSize(file.size);
-            const categoryName = file.category === 'teaching' ? '교무자료실' : '공지자료실';
+            const fileIcon = getFileIcon(file.type);
             
             fileItem.innerHTML = `
                 <div class="file-info">
-                    <div class="file-name">📎 ${file.name}</div>
-                    <div class="file-meta">
-                        ${isRecent ? `[${categoryName}] ` : ''}${fileSize} | ${file.uploadedBy} | ${uploadDate} | 다운로드 ${file.downloads || 0}회
+                    <div class="file-icon">${fileIcon}</div>
+                    <div class="file-details">
+                        <div class="file-name">${file.originalName || file.name}</div>
+                        <div class="file-meta">${fileSize} | ${file.uploadedBy} | ${uploadDate} | 다운로드 ${file.downloads || 0}회</div>
                     </div>
                 </div>
                 <div class="file-actions">
-                    <button class="btn btn-small" onclick="downloadFile('${file.url}', '${file.name}', '${docId}')">다운로드</button>
-                    ${file.uploadedBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="deleteFile('${docId}', '${file.url}')">삭제</button>` : ''}
+                    <button class="btn btn-small" onclick="downloadFile('${file.url}', '${file.originalName || file.name}')">다운로드</button>
+                    ${file.uploadedBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="deleteFile('${fileId}', '${file.path}')">삭제</button>` : ''}
                 </div>
             `;
             
             return fileItem;
         }
 
+        // 파일 아이콘 반환
+        function getFileIcon(fileType) {
+            if (fileType.includes('image')) return '🖼️';
+            if (fileType.includes('pdf')) return '📄';
+            if (fileType.includes('word') || fileType.includes('hwp')) return '📝';
+            if (fileType.includes('excel') || fileType.includes('sheet')) return '📊';
+            if (fileType.includes('zip') || fileType.includes('rar')) return '🗜️';
+            return '📎';
+        }
+
         // 파일 다운로드
-        async function downloadFile(url, fileName, docId) {
+        async function downloadFile(url, fileName) {
             try {
-                // 다운로드 카운트 증가는 실제 구현 시 추가
                 const link = document.createElement('a');
                 link.href = url;
                 link.download = fileName;
@@ -636,24 +799,35 @@
             }
         }
 
+        // 폴더 삭제
+        async function deleteFolder(folderId, folderPath) {
+            if (!confirm('정말 이 폴더를 삭제하시겠습니까? 폴더 안의 모든 내용이 삭제됩니다.')) return;
+            
+            try {
+                await deleteDoc(doc(db, 'folders', folderId));
+                showAlert('폴더가 삭제되었습니다.', 'success');
+                loadCurrentFolder();
+            } catch (error) {
+                showAlert('폴더 삭제 중 오류가 발생했습니다.', 'error');
+                console.error('폴더 삭제 오류:', error);
+            }
+        }
+
         // 파일 삭제
-        async function deleteFile(docId, fileUrl) {
+        async function deleteFile(fileId, filePath) {
             if (!confirm('정말 이 파일을 삭제하시겠습니까?')) return;
             
             try {
-                // Firestore에서 문서 삭제
-                await deleteDoc(doc(db, 'files', docId));
+                await deleteDoc(doc(db, 'files', fileId));
                 
-                // Storage에서 파일 삭제
-                const fileRef = ref(storage, fileUrl);
+                const fileRef = ref(storage, filePath);
                 await deleteObject(fileRef);
                 
                 showAlert('파일이 삭제되었습니다.', 'success');
-                loadFiles();
-                loadRecentFiles();
+                loadCurrentFolder();
             } catch (error) {
                 showAlert('파일 삭제 중 오류가 발생했습니다.', 'error');
-                console.error('삭제 오류:', error);
+                console.error('파일 삭제 오류:', error);
             }
         }
 
@@ -666,8 +840,8 @@
             }, 3000);
         }
 
-        function showLoading(category, show) {
-            const loadingEl = document.getElementById(category + 'Loading');
+        function showLoading(show) {
+            const loadingEl = document.getElementById('loading');
             if (loadingEl) {
                 loadingEl.style.display = show ? 'block' : 'none';
             }
@@ -681,15 +855,70 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        // 엔터키로 로그인
+        // 엔터키로 로그인 및 폴더 생성
         document.addEventListener('DOMContentLoaded', function() {
+            // 로그인 엔터키
             document.getElementById('password').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     login();
                 }
             });
+
+            // 폴더 생성 엔터키
+            document.getElementById('folderNameInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    createFolder();
+                }
+            });
+
+            // 모달 외부 클릭 시 닫기
+            window.onclick = function(event) {
+                const modal = document.getElementById('createFolderModal');
+                if (event.target === modal) {
+                    closeCreateFolderModal();
+                }
+            };
+
+            // 드래그 앤 드롭 기능
+            const fileUpload = document.querySelector('.file-upload');
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                fileUpload.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                fileUpload.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                fileUpload.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight(e) {
+                fileUpload.style.borderColor = '#4a90e2';
+                fileUpload.style.backgroundColor = 'rgba(74, 144, 226, 0.1)';
+            }
+
+            function unhighlight(e) {
+                fileUpload.style.borderColor = '#e1e5e9';
+                fileUpload.style.backgroundColor = '#f8f9fa';
+            }
+
+            fileUpload.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                document.getElementById('fileInput').files = files;
+                uploadFile();
+            }
         });
     </script>
 </body>
-
 </html>
