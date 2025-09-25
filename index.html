@@ -369,16 +369,15 @@
         import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js';
 
-        // Firebase 설정 (실제 사용 시 본인의 Firebase 설정으로 변경)
-        const firebaseConfig = {
-            // 여기에 Firebase 프로젝트 설정을 입력하세요
-            apiKey: "your-api-key",
-            authDomain: "your-project.firebaseapp.com",
-            projectId: "your-project-id",
-            storageBucket: "your-project.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "your-app-id"
-        };
+       const firebaseConfig = {
+  apiKey: "AIzaSyAAEa3hLEw_O75HB9_3AVEB2lDcb_5Syqg",
+  authDomain: "deokam-school.firebaseapp.com",
+  projectId: "deokam-school",
+  storageBucket: "deokam-school.firebasestorage.app",
+  messagingSenderId: "898489915549",
+  appId: "1:898489915549:web:a9974306971a3485c45c74",
+  measurementId: "G-EE93PCT7MG"
+};
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -692,4 +691,5 @@
         });
     </script>
 </body>
+
 </html>
