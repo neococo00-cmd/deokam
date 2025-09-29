@@ -497,7 +497,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, serverTimestamp, deleteDoc, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, serverTimestamp, deleteDoc, doc, updateDoc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js';
 
         const firebaseConfig = {
@@ -531,6 +531,7 @@
         window.uploadBytes = uploadBytes;
         window.getDownloadURL = getDownloadURL;
         window.updateDoc = updateDoc;
+        window.getDoc = getDoc;
         window.signInWithEmailAndPassword = signInWithEmailAndPassword;
         window.signOut = signOut;
         window.onAuthStateChanged = onAuthStateChanged;
@@ -879,14 +880,14 @@
                 <div class="file-info">
                     <div class="file-icon">📁</div>
                     <div class="file-details">
-                        <div class="file-name folder-name" onclick="navigateToFolder('${folderPath}')" title="폴더로 이동: ${folderPath}">
+                        <div class="file-name folder-name" onclick="event.stopPropagation(); navigateToFolder('${folderPath}')" title="폴더로 이동: ${folderPath}">
                             ${folder.name}
                         </div>
                         <div class="file-meta">폴더 | ${folder.createdBy} | ${createdDate}</div>
                     </div>
                 </div>
-                <div class="file-actions">
-                    ${folder.createdBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="deleteFolder('${folderId}', '${folderPath}', '${folder.name}')">삭제</button>` : ''}
+                <div class="file-actions" onclick="event.stopPropagation();">
+                    ${folder.createdBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); deleteFolder('${folderId}', '${folderPath}', '${folder.name}')">삭제</button>` : ''}
                 </div>
                 <div class="drop-indicator">여기에 놓기</div>
             `;
@@ -924,9 +925,9 @@
                         <div class="file-meta">${fileSize} | ${file.uploadedBy} | ${uploadDate} | 다운로드 ${file.downloads || 0}회</div>
                     </div>
                 </div>
-                <div class="file-actions">
-                    <button class="btn btn-small" onclick="downloadFile('${file.url}', '${fileName}')">다운로드</button>
-                    ${file.uploadedBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="deleteFile('${fileId}', '${file.path}', '${fileName}')">삭제</button>` : ''}
+                <div class="file-actions" onclick="event.stopPropagation();">
+                    <button class="btn btn-small" onclick="event.stopPropagation(); downloadFile('${file.url}', '${fileName}')">다운로드</button>
+                    ${file.uploadedBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); deleteFile('${fileId}', '${file.path}', '${fileName}')">삭제</button>` : ''}
                 </div>
             `;
             
@@ -1058,141 +1059,154 @@
             });
         }
 
-        // 파일 이동
+        // 파일 이동 (수정된 버전)
         async function moveFile(fileId, newFolderPath) {
             try {
                 console.log(`파일 이동 시작: ID=${fileId}, 새 폴더=${newFolderPath}`);
+                showLoading(true);
                 
                 // 파일 정보 가져오기
-                const fileDoc = await doc(db, 'files', fileId);
-                const fileSnapshot = await getDocs(query(collection(db, 'files'), where('__name__', '==', fileId)));
+                const fileDocRef = doc(db, 'files', fileId);
+                const fileSnapshot = await getDoc(fileDocRef);
                 
-                if (fileSnapshot.empty) {
+                if (!fileSnapshot.exists()) {
                     throw new Error('파일을 찾을 수 없습니다.');
                 }
                 
-                const fileData = fileSnapshot.docs[0].data();
-                const oldPath = fileData.path;
+                const fileData = fileSnapshot.data();
+                console.log('기존 파일 데이터:', fileData);
                 
-                // 새로운 Storage 경로 생성
-                const fileName = oldPath.split('/').pop(); // 파일명 추출
-                const newStoragePath = newFolderPath ? `files/${newFolderPath}/${fileName}` : `files/${fileName}`;
-                
-                // Storage에서 파일 복사 (Firebase는 직접 이동이 안되므로 복사 후 삭제)
-                const oldFileRef = ref(storage, oldPath);
-                const newFileRef = ref(storage, newStoragePath);
-                
-                // 기존 파일 다운로드 후 새 위치에 업로드
-                const downloadURL = await getDownloadURL(oldFileRef);
-                const response = await fetch(downloadURL);
-                const blob = await response.blob();
-                
-                await uploadBytes(newFileRef, blob);
-                const newDownloadURL = await getDownloadURL(newFileRef);
-                
-                // Firestore 문서 업데이트
-                await updateDoc(doc(db, 'files', fileId), {
+                // Firestore 문서 업데이트 (Storage 파일은 그대로 두고 경로만 변경)
+                await updateDoc(fileDocRef, {
                     folder: newFolderPath,
-                    path: newStoragePath,
-                    url: newDownloadURL,
                     movedAt: serverTimestamp()
                 });
                 
-                // 기존 Storage 파일 삭제
-                await deleteObject(oldFileRef);
-                
+                console.log('파일 이동 완료');
                 showAlert('파일이 이동되었습니다.', 'success');
-                loadCurrentFolder();
+                
+                setTimeout(() => {
+                    loadCurrentFolder();
+                }, 500);
                 
             } catch (error) {
                 showAlert('파일 이동 중 오류가 발생했습니다: ' + error.message, 'error');
                 console.error('파일 이동 오류:', error);
+            } finally {
+                showLoading(false);
             }
         }
 
-        // 폴더 이동
+        // 폴더 이동 (수정된 버전)
         async function moveFolder(folderId, newParentPath) {
             try {
                 console.log(`폴더 이동 시작: ID=${folderId}, 새 부모=${newParentPath}`);
+                showLoading(true);
                 
                 // 폴더 정보 가져오기
-                const folderSnapshot = await getDocs(query(collection(db, 'folders'), where('__name__', '==', folderId)));
+                const folderDocRef = doc(db, 'folders', folderId);
+                const folderSnapshot = await getDoc(folderDocRef);
                 
-                if (folderSnapshot.empty) {
+                if (!folderSnapshot.exists()) {
                     throw new Error('폴더를 찾을 수 없습니다.');
                 }
                 
-                const folderData = folderSnapshot.docs[0].data();
+                const folderData = folderSnapshot.data();
                 const oldPath = folderData.path;
                 const folderName = folderData.name;
+                
+                console.log('기존 폴더 데이터:', folderData);
                 
                 // 새로운 폴더 경로 생성
                 const newPath = newParentPath ? `${newParentPath}/${folderName}` : folderName;
                 
+                console.log(`폴더 경로 변경: ${oldPath} → ${newPath}`);
+                
                 // Firestore 문서 업데이트
-                await updateDoc(doc(db, 'folders', folderId), {
+                await updateDoc(folderDocRef, {
                     parentPath: newParentPath,
                     path: newPath,
                     movedAt: serverTimestamp()
                 });
                 
-                // 하위 폴더들과 파일들도 업데이트해야 함 (재귀적으로)
+                // 하위 폴더들과 파일들도 업데이트
                 await updateSubfoldersAndFiles(oldPath, newPath);
                 
+                console.log('폴더 이동 완료');
                 showAlert('폴더가 이동되었습니다.', 'success');
-                loadCurrentFolder();
+                
+                setTimeout(() => {
+                    loadCurrentFolder();
+                }, 500);
                 
             } catch (error) {
                 showAlert('폴더 이동 중 오류가 발생했습니다: ' + error.message, 'error');
                 console.error('폴더 이동 오류:', error);
+            } finally {
+                showLoading(false);
             }
         }
 
-        // 하위 폴더와 파일들 경로 업데이트
+        // 하위 폴더와 파일들 경로 업데이트 (수정된 버전)
         async function updateSubfoldersAndFiles(oldBasePath, newBasePath) {
             try {
+                console.log(`하위 항목 업데이트: ${oldBasePath} → ${newBasePath}`);
+                
+                // 모든 폴더 가져와서 수동으로 필터링
+                const allFoldersSnapshot = await getDocs(collection(db, 'folders'));
+                const foldersToUpdate = [];
+                
+                allFoldersSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.path && data.path.startsWith(oldBasePath + '/')) {
+                        foldersToUpdate.push({ id: doc.id, data: data });
+                    }
+                });
+                
+                console.log(`업데이트할 하위 폴더 개수: ${foldersToUpdate.length}`);
+                
                 // 하위 폴더들 업데이트
-                const subfoldersQuery = query(
-                    collection(db, 'folders'),
-                    where('path', '>=', oldBasePath + '/'),
-                    where('path', '<', oldBasePath + '0') // 문자열 범위 검색
-                );
-                
-                const subfoldersSnapshot = await getDocs(subfoldersQuery);
-                
-                for (const subfolderDoc of subfoldersSnapshot.docs) {
-                    const subfolderData = subfolderDoc.data();
-                    const oldPath = subfolderData.path;
+                for (const folder of foldersToUpdate) {
+                    const oldPath = folder.data.path;
                     const newPath = oldPath.replace(oldBasePath, newBasePath);
-                    const newParentPath = newPath.substring(0, newPath.lastIndexOf('/'));
+                    const newParentPath = newPath.includes('/') ? newPath.substring(0, newPath.lastIndexOf('/')) : '';
                     
-                    await updateDoc(doc(db, 'folders', subfolderDoc.id), {
+                    console.log(`폴더 업데이트: ${oldPath} → ${newPath}`);
+                    
+                    await updateDoc(doc(db, 'folders', folder.id), {
                         path: newPath,
-                        parentPath: newParentPath || newBasePath
+                        parentPath: newParentPath
                     });
                 }
                 
+                // 모든 파일 가져와서 수동으로 필터링
+                const allFilesSnapshot = await getDocs(collection(db, 'files'));
+                const filesToUpdate = [];
+                
+                allFilesSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.folder && (data.folder === oldBasePath || data.folder.startsWith(oldBasePath + '/'))) {
+                        filesToUpdate.push({ id: doc.id, data: data });
+                    }
+                });
+                
+                console.log(`업데이트할 파일 개수: ${filesToUpdate.length}`);
+                
                 // 하위 파일들 업데이트
-                const filesQuery = query(
-                    collection(db, 'files'),
-                    where('folder', '>=', oldBasePath),
-                    where('folder', '<', oldBasePath + '0')
-                );
-                
-                const filesSnapshot = await getDocs(filesQuery);
-                
-                for (const fileDoc of filesSnapshot.docs) {
-                    const fileData = fileDoc.data();
-                    const oldFolder = fileData.folder;
+                for (const file of filesToUpdate) {
+                    const oldFolder = file.data.folder;
                     const newFolder = oldFolder.replace(oldBasePath, newBasePath);
                     
-                    await updateDoc(doc(db, 'files', fileDoc.id), {
+                    console.log(`파일 업데이트: ${oldFolder} → ${newFolder}`);
+                    
+                    await updateDoc(doc(db, 'files', file.id), {
                         folder: newFolder
                     });
                 }
                 
             } catch (error) {
                 console.error('하위 항목 업데이트 오류:', error);
+                throw error;
             }
         }
         async function deleteFolder(folderId, folderPath, folderName) {
