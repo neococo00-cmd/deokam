@@ -204,6 +204,8 @@
             justify-content: space-between;
             align-items: center;
             transition: background 0.3s ease;
+            cursor: grab;
+            user-select: none;
         }
 
         .file-item:hover {
@@ -212,6 +214,42 @@
 
         .file-item:last-child {
             border-bottom: none;
+        }
+
+        .file-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .file-item.drag-over {
+            background: rgba(74, 144, 226, 0.1);
+            border: 2px dashed #4a90e2;
+        }
+
+        .folder-item {
+            position: relative;
+        }
+
+        .folder-item.drop-target {
+            background: rgba(40, 167, 69, 0.1);
+            border: 2px solid #28a745;
+        }
+
+        .drop-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(40, 167, 69, 0.2);
+            border: 2px dashed #28a745;
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #28a745;
+            z-index: 10;
         }
 
         .file-info {
@@ -356,17 +394,25 @@
             .file-item {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 10px;
+                gap: 15px;
             }
             
             .file-info {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
+                width: 100%;
+            }
+            
+            .file-actions {
+                width: 100%;
+                justify-content: flex-end;
             }
             
             .toolbar {
                 flex-direction: column;
+            }
+
+            .btn-small {
+                padding: 10px 15px;
+                font-size: 14px;
             }
         }
     </style>
@@ -451,7 +497,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, serverTimestamp, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, serverTimestamp, deleteDoc, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js';
 
         const firebaseConfig = {
@@ -484,7 +530,7 @@
         window.ref = ref;
         window.uploadBytes = uploadBytes;
         window.getDownloadURL = getDownloadURL;
-        window.deleteObject = deleteObject;
+        window.updateDoc = updateDoc;
         window.signInWithEmailAndPassword = signInWithEmailAndPassword;
         window.signOut = signOut;
         window.onAuthStateChanged = onAuthStateChanged;
@@ -816,14 +862,17 @@
             breadcrumb.innerHTML = html;
         }
 
-        // 폴더 요소 생성 (개선된 버전)
+        // 폴더 요소 생성 (드래그 앤 드롭 기능 추가)
         function createFolderElement(folder, folderId) {
             const folderItem = document.createElement('div');
-            folderItem.className = 'file-item';
+            folderItem.className = 'file-item folder-item';
+            folderItem.setAttribute('data-type', 'folder');
+            folderItem.setAttribute('data-id', folderId);
+            folderItem.setAttribute('data-path', folder.path || folder.name);
+            folderItem.setAttribute('data-name', folder.name);
+            folderItem.setAttribute('draggable', 'true');
             
             const createdDate = folder.createdAt ? new Date(folder.createdAt.seconds * 1000).toLocaleDateString('ko-KR') : '날짜 없음';
-            
-            // 폴더 클릭 시 이동할 경로 확인
             const folderPath = folder.path || folder.name;
             
             folderItem.innerHTML = `
@@ -839,15 +888,26 @@
                 <div class="file-actions">
                     ${folder.createdBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="deleteFolder('${folderId}', '${folderPath}', '${folder.name}')">삭제</button>` : ''}
                 </div>
+                <div class="drop-indicator">여기에 놓기</div>
             `;
+            
+            // 드래그 이벤트 추가
+            setupDragEvents(folderItem);
+            setupDropEvents(folderItem);
             
             return folderItem;
         }
 
-        // 파일 요소 생성 (개선된 버전)
+        // 파일 요소 생성 (드래그 앤 드롭 기능 추가)
         function createFileElement(file, fileId) {
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
+            fileItem.setAttribute('data-type', 'file');
+            fileItem.setAttribute('data-id', fileId);
+            fileItem.setAttribute('data-path', file.path);
+            fileItem.setAttribute('data-name', file.originalName || file.name);
+            fileItem.setAttribute('data-folder', file.folder || '');
+            fileItem.setAttribute('draggable', 'true');
             
             const uploadDate = file.uploadedAt ? new Date(file.uploadedAt.seconds * 1000).toLocaleDateString('ko-KR') : '날짜 없음';
             const fileSize = formatFileSize(file.size);
@@ -869,6 +929,9 @@
                     ${file.uploadedBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="deleteFile('${fileId}', '${file.path}', '${fileName}')">삭제</button>` : ''}
                 </div>
             `;
+            
+            // 드래그 이벤트 추가
+            setupDragEvents(fileItem);
             
             return fileItem;
         }
@@ -899,7 +962,239 @@
             }
         }
 
-        // 폴더 삭제 (개선된 버전)
+        // 드래그 앤 드롭 기능들
+        let draggedElement = null;
+
+        // 드래그 이벤트 설정
+        function setupDragEvents(element) {
+            element.addEventListener('dragstart', function(e) {
+                draggedElement = this;
+                this.classList.add('dragging');
+                
+                const itemType = this.getAttribute('data-type');
+                const itemName = this.getAttribute('data-name');
+                
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', this.outerHTML);
+                
+                console.log(`드래그 시작: ${itemType} - ${itemName}`);
+                
+                // 드래그 중일 때 다른 요소들 클릭 방지
+                e.stopPropagation();
+            });
+
+            element.addEventListener('dragend', function(e) {
+                this.classList.remove('dragging');
+                draggedElement = null;
+                
+                // 모든 드롭 인디케이터 숨기기
+                document.querySelectorAll('.drop-indicator').forEach(indicator => {
+                    indicator.style.display = 'none';
+                });
+                
+                document.querySelectorAll('.folder-item').forEach(folder => {
+                    folder.classList.remove('drop-target');
+                });
+            });
+        }
+
+        // 드롭 이벤트 설정 (폴더에만 적용)
+        function setupDropEvents(folderElement) {
+            folderElement.addEventListener('dragover', function(e) {
+                if (draggedElement && draggedElement !== this) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    
+                    this.classList.add('drop-target');
+                    this.querySelector('.drop-indicator').style.display = 'flex';
+                }
+            });
+
+            folderElement.addEventListener('dragleave', function(e) {
+                // 폴더를 벗어날 때만 스타일 제거
+                if (!this.contains(e.relatedTarget)) {
+                    this.classList.remove('drop-target');
+                    this.querySelector('.drop-indicator').style.display = 'none';
+                }
+            });
+
+            folderElement.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (draggedElement && draggedElement !== this) {
+                    const draggedType = draggedElement.getAttribute('data-type');
+                    const draggedId = draggedElement.getAttribute('data-id');
+                    const draggedName = draggedElement.getAttribute('data-name');
+                    
+                    const targetFolderPath = this.getAttribute('data-path');
+                    const targetFolderName = this.getAttribute('data-name');
+                    
+                    console.log(`드롭: ${draggedType} "${draggedName}" → 폴더 "${targetFolderName}"`);
+                    
+                    // 자기 자신의 하위 폴더로 이동하는 것을 방지
+                    if (draggedType === 'folder') {
+                        const draggedPath = draggedElement.getAttribute('data-path');
+                        if (targetFolderPath.startsWith(draggedPath + '/') || targetFolderPath === draggedPath) {
+                            showAlert('폴더를 자기 자신의 하위 폴더로 이동할 수 없습니다.', 'error');
+                            this.classList.remove('drop-target');
+                            this.querySelector('.drop-indicator').style.display = 'none';
+                            return;
+                        }
+                    }
+                    
+                    // 이동 확인
+                    if (confirm(`"${draggedName}"을(를) "${targetFolderName}" 폴더로 이동하시겠습니까?`)) {
+                        if (draggedType === 'file') {
+                            moveFile(draggedId, targetFolderPath);
+                        } else if (draggedType === 'folder') {
+                            moveFolder(draggedId, targetFolderPath);
+                        }
+                    }
+                }
+                
+                this.classList.remove('drop-target');
+                this.querySelector('.drop-indicator').style.display = 'none';
+            });
+        }
+
+        // 파일 이동
+        async function moveFile(fileId, newFolderPath) {
+            try {
+                console.log(`파일 이동 시작: ID=${fileId}, 새 폴더=${newFolderPath}`);
+                
+                // 파일 정보 가져오기
+                const fileDoc = await doc(db, 'files', fileId);
+                const fileSnapshot = await getDocs(query(collection(db, 'files'), where('__name__', '==', fileId)));
+                
+                if (fileSnapshot.empty) {
+                    throw new Error('파일을 찾을 수 없습니다.');
+                }
+                
+                const fileData = fileSnapshot.docs[0].data();
+                const oldPath = fileData.path;
+                
+                // 새로운 Storage 경로 생성
+                const fileName = oldPath.split('/').pop(); // 파일명 추출
+                const newStoragePath = newFolderPath ? `files/${newFolderPath}/${fileName}` : `files/${fileName}`;
+                
+                // Storage에서 파일 복사 (Firebase는 직접 이동이 안되므로 복사 후 삭제)
+                const oldFileRef = ref(storage, oldPath);
+                const newFileRef = ref(storage, newStoragePath);
+                
+                // 기존 파일 다운로드 후 새 위치에 업로드
+                const downloadURL = await getDownloadURL(oldFileRef);
+                const response = await fetch(downloadURL);
+                const blob = await response.blob();
+                
+                await uploadBytes(newFileRef, blob);
+                const newDownloadURL = await getDownloadURL(newFileRef);
+                
+                // Firestore 문서 업데이트
+                await updateDoc(doc(db, 'files', fileId), {
+                    folder: newFolderPath,
+                    path: newStoragePath,
+                    url: newDownloadURL,
+                    movedAt: serverTimestamp()
+                });
+                
+                // 기존 Storage 파일 삭제
+                await deleteObject(oldFileRef);
+                
+                showAlert('파일이 이동되었습니다.', 'success');
+                loadCurrentFolder();
+                
+            } catch (error) {
+                showAlert('파일 이동 중 오류가 발생했습니다: ' + error.message, 'error');
+                console.error('파일 이동 오류:', error);
+            }
+        }
+
+        // 폴더 이동
+        async function moveFolder(folderId, newParentPath) {
+            try {
+                console.log(`폴더 이동 시작: ID=${folderId}, 새 부모=${newParentPath}`);
+                
+                // 폴더 정보 가져오기
+                const folderSnapshot = await getDocs(query(collection(db, 'folders'), where('__name__', '==', folderId)));
+                
+                if (folderSnapshot.empty) {
+                    throw new Error('폴더를 찾을 수 없습니다.');
+                }
+                
+                const folderData = folderSnapshot.docs[0].data();
+                const oldPath = folderData.path;
+                const folderName = folderData.name;
+                
+                // 새로운 폴더 경로 생성
+                const newPath = newParentPath ? `${newParentPath}/${folderName}` : folderName;
+                
+                // Firestore 문서 업데이트
+                await updateDoc(doc(db, 'folders', folderId), {
+                    parentPath: newParentPath,
+                    path: newPath,
+                    movedAt: serverTimestamp()
+                });
+                
+                // 하위 폴더들과 파일들도 업데이트해야 함 (재귀적으로)
+                await updateSubfoldersAndFiles(oldPath, newPath);
+                
+                showAlert('폴더가 이동되었습니다.', 'success');
+                loadCurrentFolder();
+                
+            } catch (error) {
+                showAlert('폴더 이동 중 오류가 발생했습니다: ' + error.message, 'error');
+                console.error('폴더 이동 오류:', error);
+            }
+        }
+
+        // 하위 폴더와 파일들 경로 업데이트
+        async function updateSubfoldersAndFiles(oldBasePath, newBasePath) {
+            try {
+                // 하위 폴더들 업데이트
+                const subfoldersQuery = query(
+                    collection(db, 'folders'),
+                    where('path', '>=', oldBasePath + '/'),
+                    where('path', '<', oldBasePath + '0') // 문자열 범위 검색
+                );
+                
+                const subfoldersSnapshot = await getDocs(subfoldersQuery);
+                
+                for (const subfolderDoc of subfoldersSnapshot.docs) {
+                    const subfolderData = subfolderDoc.data();
+                    const oldPath = subfolderData.path;
+                    const newPath = oldPath.replace(oldBasePath, newBasePath);
+                    const newParentPath = newPath.substring(0, newPath.lastIndexOf('/'));
+                    
+                    await updateDoc(doc(db, 'folders', subfolderDoc.id), {
+                        path: newPath,
+                        parentPath: newParentPath || newBasePath
+                    });
+                }
+                
+                // 하위 파일들 업데이트
+                const filesQuery = query(
+                    collection(db, 'files'),
+                    where('folder', '>=', oldBasePath),
+                    where('folder', '<', oldBasePath + '0')
+                );
+                
+                const filesSnapshot = await getDocs(filesQuery);
+                
+                for (const fileDoc of filesSnapshot.docs) {
+                    const fileData = fileDoc.data();
+                    const oldFolder = fileData.folder;
+                    const newFolder = oldFolder.replace(oldBasePath, newBasePath);
+                    
+                    await updateDoc(doc(db, 'files', fileDoc.id), {
+                        folder: newFolder
+                    });
+                }
+                
+            } catch (error) {
+                console.error('하위 항목 업데이트 오류:', error);
+            }
+        }
         async function deleteFolder(folderId, folderPath, folderName) {
             if (!confirm(`정말 "${folderName}" 폴더를 삭제하시겠습니까?\n폴더 안의 모든 내용이 삭제됩니다.`)) return;
             
