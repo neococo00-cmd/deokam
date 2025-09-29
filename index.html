@@ -624,13 +624,21 @@
         // 인증 상태 확인
         onAuthStateChanged(auth, async (user) => {
             if (user) {
+                console.log('로그인한 사용자:', user.email);
                 // 사용자 승인 상태 확인
-                const isApproved = await checkUserApproval(user.email);
-                if (isApproved) {
+                const approvalStatus = await checkUserApproval(user.email, user.uid);
+                console.log('승인 상태:', approvalStatus);
+                
+                if (approvalStatus === 'approved' || approvalStatus === 'not_found') {
+                    // 승인된 사용자 또는 기존 사용자 (users 컬렉션에 없는 경우)
                     showMainContent(user);
                     loadCurrentFolder();
-                } else {
+                } else if (approvalStatus === 'pending') {
+                    // 승인 대기 중
                     showPendingApproval();
+                } else {
+                    // 기타 오류
+                    showLoginForm();
                 }
             } else {
                 showLoginForm();
@@ -656,15 +664,25 @@
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
                 
+                console.log('로그인 성공:', user.email);
+                
                 // 사용자 승인 상태 확인
-                const isApproved = await checkUserApproval(user.email);
-                if (isApproved) {
+                const approvalStatus = await checkUserApproval(user.email, user.uid);
+                console.log('승인 상태:', approvalStatus);
+                
+                if (approvalStatus === 'approved' || approvalStatus === 'not_found') {
+                    // 승인된 사용자 또는 기존 사용자
                     showAlert('로그인되었습니다.', 'success');
                     showMainContent(user);
                     loadCurrentFolder();
-                } else {
+                } else if (approvalStatus === 'pending') {
+                    // 승인 대기 중
                     showAlert('계정이 아직 승인되지 않았습니다.', 'error');
                     showPendingApproval();
+                } else {
+                    showAlert('로그인되었습니다.', 'success');
+                    showMainContent(user);
+                    loadCurrentFolder();
                 }
             } catch (error) {
                 let errorMessage = '로그인에 실패했습니다.';
@@ -681,6 +699,9 @@
                         break;
                     case 'auth/too-many-requests':
                         errorMessage = '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.';
+                        break;
+                    case 'auth/invalid-credential':
+                        errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
                         break;
                 }
                 
@@ -769,9 +790,12 @@
             }
         }
 
-        // 사용자 승인 상태 확인
-        async function checkUserApproval(email) {
+        // 사용자 승인 상태 확인 (개선된 버전)
+        async function checkUserApproval(email, uid) {
             try {
+                console.log('승인 상태 확인 시작:', email);
+                
+                // 이메일로 사용자 검색
                 const usersQuery = query(
                     collection(db, 'users'),
                     where('email', '==', email)
@@ -780,18 +804,21 @@
                 const usersSnapshot = await getDocs(usersQuery);
                 
                 if (usersSnapshot.empty) {
-                    console.log('사용자 정보 없음:', email);
-                    return false;
+                    console.log('users 컬렉션에 사용자 정보 없음 - 기존 사용자로 판단');
+                    // users 컬렉션에 정보가 없으면 기존 사용자로 간주하고 접근 허용
+                    return 'not_found'; // 기존 사용자
                 }
                 
                 const userData = usersSnapshot.docs[0].data();
-                console.log('사용자 상태:', userData.status);
+                console.log('사용자 데이터:', userData);
+                console.log('승인 상태:', userData.status);
                 
-                return userData.status === 'approved';
+                return userData.status; // 'approved' 또는 'pending' 반환
                 
             } catch (error) {
                 console.error('사용자 승인 상태 확인 오류:', error);
-                return false;
+                // 오류 발생 시 접근 허용 (기존 사용자일 수 있음)
+                return 'not_found';
             }
         }
 
