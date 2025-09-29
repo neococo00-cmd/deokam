@@ -429,17 +429,101 @@
             <div id="loginForm" class="login-form">
                 <div id="alert"></div>
                 
-                <div class="form-group">
-                    <label for="email">이메일</label>
-                    <input type="email" id="email" placeholder="교직원 이메일을 입력하세요">
+                <!-- 로그인 탭 -->
+                <div id="loginTab">
+                    <h3 style="text-align: center; margin-bottom: 30px; color: #333;">교직원 로그인</h3>
+                    
+                    <div class="form-group">
+                        <label for="email">이메일</label>
+                        <input type="email" id="email" placeholder="교직원 이메일을 입력하세요">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">비밀번호</label>
+                        <input type="password" id="password" placeholder="비밀번호를 입력하세요">
+                    </div>
+                    
+                    <button class="btn" onclick="login()">로그인</button>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button type="button" style="background: none; border: none; color: #4a90e2; text-decoration: underline; cursor: pointer;" onclick="showSignupForm()">
+                            계정이 없으신가요? 회원가입
+                        </button>
+                    </div>
                 </div>
-                
-                <div class="form-group">
-                    <label for="password">비밀번호</label>
-                    <input type="password" id="password" placeholder="비밀번호를 입력하세요">
+
+                <!-- 회원가입 탭 -->
+                <div id="signupTab" style="display: none;">
+                    <h3 style="text-align: center; margin-bottom: 30px; color: #333;">교직원 회원가입</h3>
+                    
+                    <div class="form-group">
+                        <label for="signupEmail">이메일</label>
+                        <input type="email" id="signupEmail" placeholder="교직원 이메일을 입력하세요">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signupPassword">비밀번호</label>
+                        <input type="password" id="signupPassword" placeholder="비밀번호를 입력하세요 (6자 이상)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signupPasswordConfirm">비밀번호 확인</label>
+                        <input type="password" id="signupPasswordConfirm" placeholder="비밀번호를 다시 입력하세요">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signupName">이름</label>
+                        <input type="text" id="signupName" placeholder="실명을 입력하세요">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signupDepartment">소속</label>
+                        <select id="signupDepartment" style="width: 100%; padding: 12px 15px; border: 2px solid #e1e5e9; border-radius: 10px; font-size: 16px;">
+                            <option value="">소속을 선택하세요</option>
+                            <option value="교무부">교무부</option>
+                            <option value="연구부">연구부</option>
+                            <option value="학생부">학생부</option>
+                            <option value="행정실">행정실</option>
+                            <option value="보건실">보건실</option>
+                            <option value="영양실">영양실</option>
+                            <option value="1학년">1학년</option>
+                            <option value="2학년">2학년</option>
+                            <option value="3학년">3학년</option>
+                            <option value="4학년">4학년</option>
+                            <option value="5학년">5학년</option>
+                            <option value="6학년">6학년</option>
+                            <option value="기타">기타</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn" onclick="signup()">회원가입 신청</button>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button type="button" style="background: none; border: none; color: #4a90e2; text-decoration: underline; cursor: pointer;" onclick="showLoginForm()">
+                            이미 계정이 있으신가요? 로그인
+                        </button>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 20px; font-size: 14px; color: #6c757d;">
+                        <strong>📢 안내사항</strong><br>
+                        회원가입 후 관리자 승인이 필요합니다.<br>
+                        승인 완료까지 1-2일 정도 소요될 수 있습니다.
+                    </div>
                 </div>
-                
-                <button class="btn" onclick="login()">로그인</button>
+
+                <!-- 승인 대기 화면 -->
+                <div id="pendingTab" style="display: none;">
+                    <div style="text-align: center; padding: 40px 20px;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+                        <h3 style="color: #333; margin-bottom: 20px;">승인 대기 중</h3>
+                        <p style="color: #6c757d; line-height: 1.6;">
+                            회원가입이 완료되었습니다.<br>
+                            관리자 승인 후 이용하실 수 있습니다.<br>
+                            승인 완료 시 등록하신 이메일로 알림을 보내드립니다.
+                        </p>
+                        <button class="btn btn-secondary" onclick="logout()" style="margin-top: 20px;">다른 계정으로 로그인</button>
+                    </div>
+                </div>
             </div>
 
             <!-- 메인 콘텐츠 -->
@@ -496,7 +580,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
         import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, serverTimestamp, deleteDoc, doc, updateDoc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js';
 
@@ -533,13 +617,21 @@
         window.updateDoc = updateDoc;
         window.getDoc = getDoc;
         window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
         window.signOut = signOut;
         window.onAuthStateChanged = onAuthStateChanged;
 
-        onAuthStateChanged(auth, (user) => {
+        // 인증 상태 확인
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
-                showMainContent(user);
-                loadCurrentFolder();
+                // 사용자 승인 상태 확인
+                const isApproved = await checkUserApproval(user.email);
+                if (isApproved) {
+                    showMainContent(user);
+                    loadCurrentFolder();
+                } else {
+                    showPendingApproval();
+                }
             } else {
                 showLoginForm();
             }
@@ -561,11 +653,145 @@
             }
 
             try {
-                await signInWithEmailAndPassword(auth, email, password);
-                showAlert('로그인되었습니다.', 'success');
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                // 사용자 승인 상태 확인
+                const isApproved = await checkUserApproval(user.email);
+                if (isApproved) {
+                    showAlert('로그인되었습니다.', 'success');
+                    showMainContent(user);
+                    loadCurrentFolder();
+                } else {
+                    showAlert('계정이 아직 승인되지 않았습니다.', 'error');
+                    showPendingApproval();
+                }
             } catch (error) {
-                showAlert('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.', 'error');
+                let errorMessage = '로그인에 실패했습니다.';
+                
+                switch(error.code) {
+                    case 'auth/user-not-found':
+                        errorMessage = '등록되지 않은 이메일입니다.';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessage = '비밀번호가 올바르지 않습니다.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = '이메일 형식이 올바르지 않습니다.';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.';
+                        break;
+                }
+                
+                showAlert(errorMessage, 'error');
                 console.error('로그인 오류:', error);
+            }
+        }
+
+        // 회원가입 함수
+        async function signup() {
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
+            const name = document.getElementById('signupName').value;
+            const department = document.getElementById('signupDepartment').value;
+            
+            // 입력 검증
+            if (!email || !password || !passwordConfirm || !name || !department) {
+                showAlert('모든 필드를 입력해주세요.', 'error');
+                return;
+            }
+            
+            if (password !== passwordConfirm) {
+                showAlert('비밀번호가 일치하지 않습니다.', 'error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showAlert('비밀번호는 6자 이상이어야 합니다.', 'error');
+                return;
+            }
+            
+            // 이메일 도메인 검증 (선택사항)
+            if (!email.includes('@')) {
+                showAlert('올바른 이메일을 입력해주세요.', 'error');
+                return;
+            }
+
+            try {
+                console.log('회원가입 시작:', email);
+                
+                // Firebase Authentication에 사용자 생성
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                console.log('Firebase 사용자 생성 완료:', user.uid);
+                
+                // Firestore에 사용자 정보 저장
+                const userData = {
+                    uid: user.uid,
+                    email: email,
+                    name: name,
+                    department: department,
+                    status: 'pending', // 승인 대기
+                    signupAt: serverTimestamp(),
+                    approvedAt: null,
+                    approvedBy: null
+                };
+                
+                await addDoc(collection(db, 'users'), userData);
+                console.log('사용자 정보 Firestore 저장 완료');
+                
+                showAlert('회원가입이 완료되었습니다. 관리자 승인을 기다려주세요.', 'success');
+                showPendingApproval();
+                
+            } catch (error) {
+                let errorMessage = '회원가입 중 오류가 발생했습니다.';
+                
+                switch(error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage = '이미 사용 중인 이메일입니다.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = '이메일 형식이 올바르지 않습니다.';
+                        break;
+                    case 'auth/operation-not-allowed':
+                        errorMessage = '이메일/비밀번호 회원가입이 비활성화되어 있습니다.';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = '비밀번호가 너무 약합니다.';
+                        break;
+                }
+                
+                showAlert(errorMessage, 'error');
+                console.error('회원가입 오류:', error);
+            }
+        }
+
+        // 사용자 승인 상태 확인
+        async function checkUserApproval(email) {
+            try {
+                const usersQuery = query(
+                    collection(db, 'users'),
+                    where('email', '==', email)
+                );
+                
+                const usersSnapshot = await getDocs(usersQuery);
+                
+                if (usersSnapshot.empty) {
+                    console.log('사용자 정보 없음:', email);
+                    return false;
+                }
+                
+                const userData = usersSnapshot.docs[0].data();
+                console.log('사용자 상태:', userData.status);
+                
+                return userData.status === 'approved';
+                
+            } catch (error) {
+                console.error('사용자 승인 상태 확인 오류:', error);
+                return false;
             }
         }
 
@@ -587,12 +813,42 @@
             document.getElementById('userEmail').textContent = user.email;
         }
 
-        // 로그인 폼 표시
+        // 화면 전환 함수들
         function showLoginForm() {
             document.getElementById('loginForm').style.display = 'block';
             document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('loginTab').style.display = 'block';
+            document.getElementById('signupTab').style.display = 'none';
+            document.getElementById('pendingTab').style.display = 'none';
+            clearFormInputs();
+        }
+
+        function showSignupForm() {
+            document.getElementById('signupTab').style.display = 'block';
+            document.getElementById('loginTab').style.display = 'none';
+            document.getElementById('pendingTab').style.display = 'none';
+            clearFormInputs();
+        }
+
+        function showPendingApproval() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('loginTab').style.display = 'none';
+            document.getElementById('signupTab').style.display = 'none';
+            document.getElementById('pendingTab').style.display = 'block';
+        }
+
+        function clearFormInputs() {
+            // 로그인 폼 클리어
             document.getElementById('email').value = '';
             document.getElementById('password').value = '';
+            
+            // 회원가입 폼 클리어
+            document.getElementById('signupEmail').value = '';
+            document.getElementById('signupPassword').value = '';
+            document.getElementById('signupPasswordConfirm').value = '';
+            document.getElementById('signupName').value = '';
+            document.getElementById('signupDepartment').value = '';
         }
 
         // 폴더 생성 모달 표시
@@ -1377,12 +1633,19 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        // 엔터키로 로그인 및 폴더 생성
+        // 엔터키로 로그인 및 회원가입
         document.addEventListener('DOMContentLoaded', function() {
             // 로그인 엔터키
             document.getElementById('password').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     login();
+                }
+            });
+
+            // 회원가입 엔터키 (마지막 입력 필드에서)
+            document.getElementById('signupDepartment').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    signup();
                 }
             });
 
