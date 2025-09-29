@@ -681,59 +681,97 @@
 
                 let hasContent = false;
 
-                // 폴더 목록 가져오기
+                // 폴더 목록 가져오기 (현재 폴더의 직접 하위 폴더만)
                 try {
+                    console.log('현재 폴더에서 하위 폴더 검색:', currentFolder);
+                    
                     const foldersQuery = query(
                         collection(db, 'folders'),
                         where('parentPath', '==', currentFolder)
                     );
                     
                     const foldersSnapshot = await getDocs(foldersQuery);
-                    console.log('폴더 개수:', foldersSnapshot.size);
+                    console.log('찾은 폴더 개수:', foldersSnapshot.size);
                     
-                    // 폴더 표시
+                    // 폴더들을 배열로 변환하고 이름순 정렬
+                    const folders = [];
                     foldersSnapshot.forEach((folderDoc) => {
                         const folder = folderDoc.data();
-                        console.log('폴더 데이터:', folder);
-                        const folderElement = createFolderElement(folder, folderDoc.id);
+                        folder.id = folderDoc.id;
+                        folders.push(folder);
+                        console.log('폴더 발견:', folder.name, '경로:', folder.path, '부모:', folder.parentPath);
+                    });
+                    
+                    // 폴더를 이름순으로 정렬
+                    folders.sort((a, b) => a.name.localeCompare(b.name));
+                    
+                    // 정렬된 폴더들을 화면에 표시
+                    folders.forEach(folder => {
+                        const folderElement = createFolderElement(folder, folder.id);
                         fileList.appendChild(folderElement);
                         hasContent = true;
                     });
+                    
                 } catch (folderError) {
                     console.error('폴더 로드 오류:', folderError);
                 }
 
-                // 파일 목록 가져오기
+                // 파일 목록 가져오기 (현재 폴더의 파일들만)
                 try {
+                    console.log('현재 폴더에서 파일 검색:', currentFolder);
+                    
                     const filesQuery = query(
                         collection(db, 'files'),
                         where('folder', '==', currentFolder)
                     );
                     
                     const filesSnapshot = await getDocs(filesQuery);
-                    console.log('파일 개수:', filesSnapshot.size);
+                    console.log('찾은 파일 개수:', filesSnapshot.size);
                     
-                    // 파일 표시
+                    // 파일들을 배열로 변환하고 이름순 정렬
+                    const files = [];
                     filesSnapshot.forEach((fileDoc) => {
                         const file = fileDoc.data();
-                        console.log('파일 데이터:', file);
-                        const fileElement = createFileElement(file, fileDoc.id);
+                        file.id = fileDoc.id;
+                        files.push(file);
+                        console.log('파일 발견:', file.name, '폴더:', file.folder);
+                    });
+                    
+                    // 파일을 이름순으로 정렬
+                    files.sort((a, b) => (a.originalName || a.name).localeCompare(b.originalName || b.name));
+                    
+                    // 정렬된 파일들을 화면에 표시
+                    files.forEach(file => {
+                        const fileElement = createFileElement(file, file.id);
                         fileList.appendChild(fileElement);
                         hasContent = true;
                     });
+                    
                 } catch (fileError) {
                     console.error('파일 로드 오류:', fileError);
                 }
 
-                // 모든 파일과 폴더 가져오기 (디버깅용)
+                // 디버깅: 전체 데이터 확인
                 try {
-                    const allFilesQuery = collection(db, 'files');
-                    const allFilesSnapshot = await getDocs(allFilesQuery);
+                    const allFoldersSnapshot = await getDocs(collection(db, 'folders'));
+                    const allFilesSnapshot = await getDocs(collection(db, 'files'));
+                    
+                    console.log('=== 전체 데이터 현황 ===');
+                    console.log('전체 폴더 개수:', allFoldersSnapshot.size);
                     console.log('전체 파일 개수:', allFilesSnapshot.size);
                     
-                    const allFoldersQuery = collection(db, 'folders');
-                    const allFoldersSnapshot = await getDocs(allFoldersQuery);
-                    console.log('전체 폴더 개수:', allFoldersSnapshot.size);
+                    console.log('=== 모든 폴더 목록 ===');
+                    allFoldersSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        console.log(`폴더: ${data.name}, 경로: ${data.path}, 부모: ${data.parentPath}`);
+                    });
+                    
+                    console.log('=== 모든 파일 목록 ===');
+                    allFilesSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        console.log(`파일: ${data.name}, 폴더: ${data.folder}`);
+                    });
+                    
                 } catch (debugError) {
                     console.error('디버깅 쿼리 오류:', debugError);
                 }
@@ -750,7 +788,7 @@
                 
             } catch (error) {
                 showAlert('폴더 내용을 불러오는 중 오류가 발생했습니다: ' + error.message, 'error');
-                console.error('폴더 로드 오류:', error);
+                console.error('전체 폴더 로드 오류:', error);
             } finally {
                 showLoading(false);
             }
@@ -778,30 +816,35 @@
             breadcrumb.innerHTML = html;
         }
 
-        // 폴더 요소 생성
+        // 폴더 요소 생성 (개선된 버전)
         function createFolderElement(folder, folderId) {
             const folderItem = document.createElement('div');
             folderItem.className = 'file-item';
             
             const createdDate = folder.createdAt ? new Date(folder.createdAt.seconds * 1000).toLocaleDateString('ko-KR') : '날짜 없음';
             
+            // 폴더 클릭 시 이동할 경로 확인
+            const folderPath = folder.path || folder.name;
+            
             folderItem.innerHTML = `
                 <div class="file-info">
                     <div class="file-icon">📁</div>
                     <div class="file-details">
-                        <div class="file-name folder-name" onclick="navigateToFolder('${folder.path}')">${folder.name}</div>
+                        <div class="file-name folder-name" onclick="navigateToFolder('${folderPath}')" title="폴더로 이동: ${folderPath}">
+                            ${folder.name}
+                        </div>
                         <div class="file-meta">폴더 | ${folder.createdBy} | ${createdDate}</div>
                     </div>
                 </div>
                 <div class="file-actions">
-                    ${folder.createdBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="deleteFolder('${folderId}', '${folder.path}')">삭제</button>` : ''}
+                    ${folder.createdBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="deleteFolder('${folderId}', '${folderPath}', '${folder.name}')">삭제</button>` : ''}
                 </div>
             `;
             
             return folderItem;
         }
 
-        // 파일 요소 생성
+        // 파일 요소 생성 (개선된 버전)
         function createFileElement(file, fileId) {
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
@@ -809,18 +852,21 @@
             const uploadDate = file.uploadedAt ? new Date(file.uploadedAt.seconds * 1000).toLocaleDateString('ko-KR') : '날짜 없음';
             const fileSize = formatFileSize(file.size);
             const fileIcon = getFileIcon(file.type);
+            const fileName = file.originalName || file.name;
             
             fileItem.innerHTML = `
                 <div class="file-info">
                     <div class="file-icon">${fileIcon}</div>
                     <div class="file-details">
-                        <div class="file-name">${file.originalName || file.name}</div>
+                        <div class="file-name" title="${fileName}">
+                            ${fileName}
+                        </div>
                         <div class="file-meta">${fileSize} | ${file.uploadedBy} | ${uploadDate} | 다운로드 ${file.downloads || 0}회</div>
                     </div>
                 </div>
                 <div class="file-actions">
-                    <button class="btn btn-small" onclick="downloadFile('${file.url}', '${file.originalName || file.name}')">다운로드</button>
-                    ${file.uploadedBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="deleteFile('${fileId}', '${file.path}')">삭제</button>` : ''}
+                    <button class="btn btn-small" onclick="downloadFile('${file.url}', '${fileName}')">다운로드</button>
+                    ${file.uploadedBy === currentUser.email ? `<button class="btn btn-small btn-secondary" onclick="deleteFile('${fileId}', '${file.path}', '${fileName}')">삭제</button>` : ''}
                 </div>
             `;
             
@@ -853,34 +899,57 @@
             }
         }
 
-        // 폴더 삭제
-        async function deleteFolder(folderId, folderPath) {
-            if (!confirm('정말 이 폴더를 삭제하시겠습니까? 폴더 안의 모든 내용이 삭제됩니다.')) return;
+        // 폴더 삭제 (개선된 버전)
+        async function deleteFolder(folderId, folderPath, folderName) {
+            if (!confirm(`정말 "${folderName}" 폴더를 삭제하시겠습니까?\n폴더 안의 모든 내용이 삭제됩니다.`)) return;
             
             try {
+                console.log('폴더 삭제 시작:', folderName, 'ID:', folderId);
+                
+                // Firestore에서 폴더 문서 삭제
                 await deleteDoc(doc(db, 'folders', folderId));
-                showAlert('폴더가 삭제되었습니다.', 'success');
-                loadCurrentFolder();
+                console.log('폴더 문서 삭제 완료');
+                
+                showAlert(`폴더 "${folderName}"이 삭제되었습니다.`, 'success');
+                
+                // 폴더 목록 새로고침
+                setTimeout(() => {
+                    loadCurrentFolder();
+                }, 500);
+                
             } catch (error) {
-                showAlert('폴더 삭제 중 오류가 발생했습니다.', 'error');
+                showAlert('폴더 삭제 중 오류가 발생했습니다: ' + error.message, 'error');
                 console.error('폴더 삭제 오류:', error);
             }
         }
 
-        // 파일 삭제
-        async function deleteFile(fileId, filePath) {
-            if (!confirm('정말 이 파일을 삭제하시겠습니까?')) return;
+        // 파일 삭제 (개선된 버전)
+        async function deleteFile(fileId, filePath, fileName) {
+            if (!confirm(`정말 "${fileName}" 파일을 삭제하시겠습니까?`)) return;
             
             try {
+                console.log('파일 삭제 시작:', fileName, 'ID:', fileId);
+                
+                // Firestore에서 파일 문서 삭제
                 await deleteDoc(doc(db, 'files', fileId));
+                console.log('파일 문서 삭제 완료');
                 
-                const fileRef = ref(storage, filePath);
-                await deleteObject(fileRef);
+                // Storage에서 파일 삭제
+                if (filePath) {
+                    const fileRef = ref(storage, filePath);
+                    await deleteObject(fileRef);
+                    console.log('Storage 파일 삭제 완료');
+                }
                 
-                showAlert('파일이 삭제되었습니다.', 'success');
-                loadCurrentFolder();
+                showAlert(`파일 "${fileName}"이 삭제되었습니다.`, 'success');
+                
+                // 파일 목록 새로고침
+                setTimeout(() => {
+                    loadCurrentFolder();
+                }, 500);
+                
             } catch (error) {
-                showAlert('파일 삭제 중 오류가 발생했습니다.', 'error');
+                showAlert('파일 삭제 중 오류가 발생했습니다: ' + error.message, 'error');
                 console.error('파일 삭제 오류:', error);
             }
         }
