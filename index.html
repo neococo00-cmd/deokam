@@ -569,22 +569,35 @@
                 return;
             }
 
+            console.log('폴더 생성 시작:', folderName);
+            console.log('현재 폴더:', currentFolder);
+
             try {
                 const folderPath = currentFolder ? `${currentFolder}/${folderName}` : folderName;
+                console.log('폴더 경로:', folderPath);
                 
-                await addDoc(collection(db, 'folders'), {
+                const folderData = {
                     name: folderName,
                     path: folderPath,
                     parentPath: currentFolder,
                     createdBy: currentUser.email,
                     createdAt: serverTimestamp()
-                });
+                };
+                
+                console.log('Firestore에 저장할 폴더 데이터:', folderData);
+                
+                const docRef = await addDoc(collection(db, 'folders'), folderData);
+                console.log('폴더 Firestore 문서 ID:', docRef.id);
 
                 showAlert(`폴더 "${folderName}"이 생성되었습니다.`, 'success');
                 closeCreateFolderModal();
-                loadCurrentFolder();
+                
+                console.log('폴더 목록 새로고침 시작');
+                setTimeout(() => {
+                    loadCurrentFolder();
+                }, 1000); // 1초 후 새로고침
             } catch (error) {
-                showAlert('폴더 생성 중 오류가 발생했습니다.', 'error');
+                showAlert('폴더 생성 중 오류가 발생했습니다: ' + error.message, 'error');
                 console.error('폴더 생성 오류:', error);
             }
         }
@@ -596,6 +609,9 @@
             
             if (files.length === 0) return;
 
+            console.log('업로드할 파일 개수:', files.length);
+            console.log('현재 폴더:', currentFolder);
+
             for (let file of files) {
                 if (file.size > 50 * 1024 * 1024) {
                     showAlert(`${file.name}은 50MB를 초과합니다.`, 'error');
@@ -604,14 +620,21 @@
 
                 try {
                     showLoading(true);
+                    console.log('파일 업로드 시작:', file.name);
                     
                     const fileName = `${Date.now()}_${file.name}`;
                     const filePath = currentFolder ? `files/${currentFolder}/${fileName}` : `files/${fileName}`;
                     const fileRef = ref(storage, filePath);
-                    const snapshot = await uploadBytes(fileRef, file);
-                    const downloadURL = await getDownloadURL(snapshot.ref);
                     
-                    await addDoc(collection(db, 'files'), {
+                    console.log('Storage 경로:', filePath);
+                    
+                    const snapshot = await uploadBytes(fileRef, file);
+                    console.log('Storage 업로드 완료');
+                    
+                    const downloadURL = await getDownloadURL(snapshot.ref);
+                    console.log('다운로드 URL:', downloadURL);
+                    
+                    const fileData = {
                         name: file.name,
                         originalName: file.name,
                         size: file.size,
@@ -622,11 +645,16 @@
                         uploadedBy: currentUser.email,
                         uploadedAt: serverTimestamp(),
                         downloads: 0
-                    });
+                    };
+                    
+                    console.log('Firestore에 저장할 데이터:', fileData);
+                    
+                    const docRef = await addDoc(collection(db, 'files'), fileData);
+                    console.log('Firestore 문서 ID:', docRef.id);
                     
                     showAlert(`${file.name}이 업로드되었습니다.`, 'success');
                 } catch (error) {
-                    showAlert(`${file.name} 업로드 중 오류가 발생했습니다.`, 'error');
+                    showAlert(`${file.name} 업로드 중 오류가 발생했습니다: ${error.message}`, 'error');
                     console.error('업로드 오류:', error);
                 } finally {
                     showLoading(false);
@@ -634,7 +662,10 @@
             }
             
             input.value = '';
-            loadCurrentFolder();
+            console.log('파일 목록 새로고침 시작');
+            setTimeout(() => {
+                loadCurrentFolder();
+            }, 1000); // 1초 후 새로고침
         }
 
         // 현재 폴더 내용 로드
@@ -648,41 +679,64 @@
                 const fileList = document.getElementById('fileList');
                 fileList.innerHTML = '';
 
-                // 폴더 목록 가져오기
-                const foldersQuery = query(
-                    collection(db, 'folders'),
-                    where('parentPath', '==', currentFolder),
-                    orderBy('createdAt', 'desc')
-                );
-                
-                const foldersSnapshot = await getDocs(foldersQuery);
-                
-                // 파일 목록 가져오기
-                const filesQuery = query(
-                    collection(db, 'files'),
-                    where('folder', '==', currentFolder),
-                    orderBy('uploadedAt', 'desc')
-                );
-                
-                const filesSnapshot = await getDocs(filesQuery);
-                
                 let hasContent = false;
 
-                // 폴더 표시
-                foldersSnapshot.forEach((folderDoc) => {
-                    const folder = folderDoc.data();
-                    const folderElement = createFolderElement(folder, folderDoc.id);
-                    fileList.appendChild(folderElement);
-                    hasContent = true;
-                });
+                // 폴더 목록 가져오기
+                try {
+                    const foldersQuery = query(
+                        collection(db, 'folders'),
+                        where('parentPath', '==', currentFolder)
+                    );
+                    
+                    const foldersSnapshot = await getDocs(foldersQuery);
+                    console.log('폴더 개수:', foldersSnapshot.size);
+                    
+                    // 폴더 표시
+                    foldersSnapshot.forEach((folderDoc) => {
+                        const folder = folderDoc.data();
+                        console.log('폴더 데이터:', folder);
+                        const folderElement = createFolderElement(folder, folderDoc.id);
+                        fileList.appendChild(folderElement);
+                        hasContent = true;
+                    });
+                } catch (folderError) {
+                    console.error('폴더 로드 오류:', folderError);
+                }
 
-                // 파일 표시
-                filesSnapshot.forEach((fileDoc) => {
-                    const file = fileDoc.data();
-                    const fileElement = createFileElement(file, fileDoc.id);
-                    fileList.appendChild(fileElement);
-                    hasContent = true;
-                });
+                // 파일 목록 가져오기
+                try {
+                    const filesQuery = query(
+                        collection(db, 'files'),
+                        where('folder', '==', currentFolder)
+                    );
+                    
+                    const filesSnapshot = await getDocs(filesQuery);
+                    console.log('파일 개수:', filesSnapshot.size);
+                    
+                    // 파일 표시
+                    filesSnapshot.forEach((fileDoc) => {
+                        const file = fileDoc.data();
+                        console.log('파일 데이터:', file);
+                        const fileElement = createFileElement(file, fileDoc.id);
+                        fileList.appendChild(fileElement);
+                        hasContent = true;
+                    });
+                } catch (fileError) {
+                    console.error('파일 로드 오류:', fileError);
+                }
+
+                // 모든 파일과 폴더 가져오기 (디버깅용)
+                try {
+                    const allFilesQuery = collection(db, 'files');
+                    const allFilesSnapshot = await getDocs(allFilesQuery);
+                    console.log('전체 파일 개수:', allFilesSnapshot.size);
+                    
+                    const allFoldersQuery = collection(db, 'folders');
+                    const allFoldersSnapshot = await getDocs(allFoldersQuery);
+                    console.log('전체 폴더 개수:', allFoldersSnapshot.size);
+                } catch (debugError) {
+                    console.error('디버깅 쿼리 오류:', debugError);
+                }
 
                 if (!hasContent) {
                     fileList.innerHTML = `
@@ -695,7 +749,7 @@
                 }
                 
             } catch (error) {
-                showAlert('폴더 내용을 불러오는 중 오류가 발생했습니다.', 'error');
+                showAlert('폴더 내용을 불러오는 중 오류가 발생했습니다: ' + error.message, 'error');
                 console.error('폴더 로드 오류:', error);
             } finally {
                 showLoading(false);
