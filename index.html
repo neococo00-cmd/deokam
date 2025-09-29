@@ -649,7 +649,7 @@
             }
         }
 
-        // 파일 업로드
+        // 파일 업로드 (Storage 경로 개선)
         async function uploadFile() {
             const input = document.getElementById('fileInput');
             const files = input.files;
@@ -669,7 +669,8 @@
                     showLoading(true);
                     console.log('파일 업로드 시작:', file.name);
                     
-                    const fileName = `${Date.now()}_${file.name}`;
+                    const timestamp = Date.now();
+                    const fileName = `${timestamp}_${file.name}`;
                     const filePath = currentFolder ? `files/${currentFolder}/${fileName}` : `files/${fileName}`;
                     const fileRef = ref(storage, filePath);
                     
@@ -712,7 +713,7 @@
             console.log('파일 목록 새로고침 시작');
             setTimeout(() => {
                 loadCurrentFolder();
-            }, 1000); // 1초 후 새로고침
+            }, 1000);
         }
 
         // 현재 폴더 내용 로드
@@ -1059,7 +1060,7 @@
             });
         }
 
-        // 파일 이동 (수정된 버전)
+        // 파일 이동 (실제 Storage 파일도 이동)
         async function moveFile(fileId, newFolderPath) {
             try {
                 console.log(`파일 이동 시작: ID=${fileId}, 새 폴더=${newFolderPath}`);
@@ -1076,13 +1077,59 @@
                 const fileData = fileSnapshot.data();
                 console.log('기존 파일 데이터:', fileData);
                 
-                // Firestore 문서 업데이트 (Storage 파일은 그대로 두고 경로만 변경)
-                await updateDoc(fileDocRef, {
-                    folder: newFolderPath,
-                    movedAt: serverTimestamp()
-                });
+                const oldStoragePath = fileData.path;
+                const fileName = oldStoragePath.split('/').pop(); // 파일명만 추출
                 
-                console.log('파일 이동 완료');
+                // 새로운 Storage 경로 생성
+                const newStoragePath = newFolderPath ? `files/${newFolderPath}/${fileName}` : `files/${fileName}`;
+                
+                console.log(`Storage 경로 변경: ${oldStoragePath} → ${newStoragePath}`);
+                
+                // Storage에서 파일 복사
+                const oldFileRef = ref(storage, oldStoragePath);
+                const newFileRef = ref(storage, newStoragePath);
+                
+                try {
+                    // 기존 파일 다운로드
+                    const downloadURL = await getDownloadURL(oldFileRef);
+                    const response = await fetch(downloadURL);
+                    const blob = await response.blob();
+                    
+                    console.log('파일 다운로드 완료, 새 위치에 업로드 시작');
+                    
+                    // 새 위치에 업로드
+                    await uploadBytes(newFileRef, blob);
+                    const newDownloadURL = await getDownloadURL(newFileRef);
+                    
+                    console.log('새 위치 업로드 완료, Firestore 업데이트');
+                    
+                    // Firestore 문서 업데이트
+                    await updateDoc(fileDocRef, {
+                        folder: newFolderPath,
+                        path: newStoragePath,
+                        url: newDownloadURL,
+                        movedAt: serverTimestamp()
+                    });
+                    
+                    console.log('Firestore 업데이트 완료, 기존 파일 삭제');
+                    
+                    // 기존 Storage 파일 삭제
+                    await deleteObject(oldFileRef);
+                    
+                    console.log('파일 이동 완료');
+                    
+                } catch (storageError) {
+                    console.error('Storage 작업 오류:', storageError);
+                    
+                    // Storage 작업이 실패하면 최소한 Firestore만 업데이트
+                    await updateDoc(fileDocRef, {
+                        folder: newFolderPath,
+                        movedAt: serverTimestamp()
+                    });
+                    
+                    console.log('Storage 이동은 실패했지만 폴더 정보는 업데이트됨');
+                }
+                
                 showAlert('파일이 이동되었습니다.', 'success');
                 
                 setTimeout(() => {
@@ -1147,7 +1194,7 @@
             }
         }
 
-        // 하위 폴더와 파일들 경로 업데이트 (수정된 버전)
+        // 하위 폴더와 파일들 경로 업데이트 (실제 Storage 경로도 변경)
         async function updateSubfoldersAndFiles(oldBasePath, newBasePath) {
             try {
                 console.log(`하위 항목 업데이트: ${oldBasePath} → ${newBasePath}`);
@@ -1179,7 +1226,7 @@
                     });
                 }
                 
-                // 모든 파일 가져와서 수동으로 필터링
+                // 모든 파일 가져와서 수동으로 필터링 및 실제 이동
                 const allFilesSnapshot = await getDocs(collection(db, 'files'));
                 const filesToUpdate = [];
                 
@@ -1192,16 +1239,59 @@
                 
                 console.log(`업데이트할 파일 개수: ${filesToUpdate.length}`);
                 
-                // 하위 파일들 업데이트
+                // 하위 파일들 실제 이동
                 for (const file of filesToUpdate) {
                     const oldFolder = file.data.folder;
                     const newFolder = oldFolder.replace(oldBasePath, newBasePath);
                     
                     console.log(`파일 업데이트: ${oldFolder} → ${newFolder}`);
                     
-                    await updateDoc(doc(db, 'files', file.id), {
-                        folder: newFolder
-                    });
+                    // Storage에서도 실제 파일 이동
+                    if (file.data.path) {
+                        try {
+                            const oldStoragePath = file.data.path;
+                            const fileName = oldStoragePath.split('/').pop();
+                            const newStoragePath = newFolder ? `files/${newFolder}/${fileName}` : `files/${fileName}`;
+                            
+                            console.log(`파일 Storage 이동: ${oldStoragePath} → ${newStoragePath}`);
+                            
+                            const oldFileRef = ref(storage, oldStoragePath);
+                            const newFileRef = ref(storage, newStoragePath);
+                            
+                            // 파일 복사
+                            const downloadURL = await getDownloadURL(oldFileRef);
+                            const response = await fetch(downloadURL);
+                            const blob = await response.blob();
+                            
+                            await uploadBytes(newFileRef, blob);
+                            const newDownloadURL = await getDownloadURL(newFileRef);
+                            
+                            // Firestore 업데이트
+                            await updateDoc(doc(db, 'files', file.id), {
+                                folder: newFolder,
+                                path: newStoragePath,
+                                url: newDownloadURL
+                            });
+                            
+                            // 기존 파일 삭제
+                            await deleteObject(oldFileRef);
+                            
+                            console.log(`파일 Storage 이동 완료: ${fileName}`);
+                            
+                        } catch (fileError) {
+                            console.error(`파일 ${file.data.name} 이동 오류:`, fileError);
+                            
+                            // Storage 이동이 실패해도 최소한 폴더 정보는 업데이트
+                            await updateDoc(doc(db, 'files', file.id), {
+                                folder: newFolder
+                            });
+                        }
+                    } else {
+                        // path가 없는 경우 폴더 정보만 업데이트
+                        await updateDoc(doc(db, 'files', file.id), {
+                            folder: newFolder
+                        });
+                    }
                 }
                 
             } catch (error) {
